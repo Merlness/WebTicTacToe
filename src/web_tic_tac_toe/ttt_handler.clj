@@ -16,6 +16,7 @@
           "ai_hard" :hard
           "ai_medium" :medium
           "ai_easy" :easy
+          ;
           "hard" :hard
           "medium" :medium
           "easy" :easy
