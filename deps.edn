@@ -1,0 +1,21 @@
+{
+ :paths   ["src" "resources"]
+ :deps    {
+           org.clojure/clojure               {:mvn/version "1.11.1"}
+           org.clojure/data.json             {:mvn/version "2.5.0"}
+           org.postgresql/postgresql         {:mvn/version "42.7.2"}
+           com.github.seancorfield/next.jdbc {:mvn/version "1.3.909"}
+           quil/quil                         {:mvn/version "4.3.1563"}
+           ;io.github.Merlness/ttt-clojure    {:git/url "https://github.com/Merlness/ttt-clojure.git" :sha "83235da1eb3430d656c8821e0c3a07d579b99c91"}
+           httpserver/httpserver             {:local/root "/Users/merlmartin/Documents/GitHub/javakoans/MyHTTPServer/MyHTTPServer.jar"}
+           ttt/ttt                           {:local/root "/Users/merlmartin/Documents/GitHub/ttt_clojure"}
+           }
+
+ :aliases {
+           :dev  {:extra-deps {speclj/speclj {:mvn/version "3.4.6"}}}
+           :test {:extra-paths ["spec"]
+                  :extra-deps  {speclj/speclj {:mvn/version "3.4.6"}}
+                  :main-opts   ["-m" "speclj.main" "-c"]}
+           :run  {:main-opts ["-m" "webtictactoe.server"]}
+           }
+ }
