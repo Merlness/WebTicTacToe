@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]
             [ttt-clojure.board :as board]
             [ttt-clojure.game :as game]
+            [ttt-clojure.game-modes :as gm]
             [ttt-clojure.ui :as ui])
 
   (:import (server FilePathHandler)))
@@ -13,17 +14,17 @@
     (or (case value
           "3x3" :3x3
           "4x4" :4x4
-          "ai_hard" :hard
-          "ai_medium" :medium
-          "ai_easy" :easy
-          ;
-          "hard" :hard
-          "medium" :medium
-          "easy" :easy
+          "ai_hard" {:kind :ai :difficulty :hard}
+          "ai_medium" {:kind :ai :difficulty :medium}
+          "ai_easy" {:kind :ai :difficulty :easy}
+          "hard" {:kind :ai :difficulty :hard}
+          "medium" {:kind :ai :difficulty :medium}
+          "easy" {:kind :ai :difficulty :easy}
+          "human" {:kind :human}
           nil)
         default)))
 
-(defn generate-css []                                       ;make a def - constant
+(def generate-css
   (str "<style>"
        "body { padding: 10px;}"
        "h1 { margin: 0;}"
@@ -83,8 +84,7 @@
        "<br>"
 
        "<input type=\"submit\" value=\"Submit\">"
-       "</form>"
-       ))
+       "</form>"))
 (defn parse-params [params-str]
   (->> (str/split params-str #"&")
        (map (fn [param-str] (str/split param-str #"=")))
@@ -100,15 +100,24 @@
                                (if (string? token) token " ") "</button>"
                                (when (= (dec side) (mod index side)) "<br>"))))
                       board)))
+
+(defn player-value [player]                                 ;test
+  (let [kind (:kind player)
+        difficulty (:difficulty player)]
+    (if difficulty
+      (str (name kind) "_" (name difficulty))
+      (name kind))))
 (defn hidden-map [game]
-  (prn "(:kind (:player-1 game)):" (:kind (:player-1 game)))
-  (prn "(:kind (:player-2 game)):" (:kind (:player-2 game)))
-  (str "<input type='hidden' name='game-id' value='" (:game-id game) "'>"
-       "<input type='hidden' name='player_1' value='" (name (:kind (:player-1 game))) "'>" ;
-       "<input type='hidden' name='player_2' value='" (name (:kind (:player-2 game))) "'>"
-       "<input type='hidden' name='size' value='" (name (:size game)) "'>"
-       "<input type='hidden' name='moves' value='" (clojure.string/join "," (:moves game)) "'>"))
-(defn new-button []                                         ;change to constant def
+  (let [player-1 (:player-1 game)
+        player-2 (:player-2 game)]
+    (str "<input type='hidden' name='game-id' value='" (:game-id game) "'>"
+         "<input type='hidden' name='player_1' value='" (player-value player-1) "'>"
+         "<input type='hidden' name='player_2' value='" (player-value player-2) "'>"
+
+         "<input type='hidden' name='size' value='" (name (:size game)) "'>"
+         "<input type='hidden' name='moves' value='" (clojure.string/join "," (:moves game)) "'>")))
+
+(def new-button
   (str "<form action=\"/tictactoe\" method=\"post\">"
        "<button type=\"submit\" class=\"new-game-btn\" name=\"newGame\" value=\"true\">New Game</button>"
        "</form>"))
@@ -126,11 +135,10 @@
 
 (defn generate-html [game]
   (let [board (game/convert-moves-to-board game)
-
         game-over? (board/game-over? board game)
         side (Math/sqrt (count board))]
     (str "<!DOCTYPE html><html><head>"
-         (generate-css)
+         generate-css
          "</head><body><h1>Tic Tac Toe</h1>"
          (if game-over?
            (str "<div class='game-result'>"
@@ -141,79 +149,47 @@
                 (game-buttons board side)
                 (hidden-map game)
                 "</form>"))
-         (new-button)
+         new-button
          "</body></html>")))
 
 (defn parse-moves [moves-str]
-  (if (empty? moves-str)                                    ; use str/blank? when working with strings
+  (if (str/blank? moves-str)
     []
-    ; use mapv
-    (vec (map #(Integer/parseInt %) (str/split moves-str #"%2C")))))
+    (mapv #(Integer/parseInt %) (str/split moves-str #"%2C"))))
 
 (defn wrong-move [move]
   (or (= move "-1") (= move "X") (= move "O")))
 
-(defn get-move []
-  )
+(defn get-move [params-map game moves]
+  (let [current-player (if (even? (count moves)) (:player-1 game) (:player-2 game))
+        opponent (if (= current-player (:player-1 game)) (:player-2 game) (:player-1 game))
+        game (assoc game :moves moves)
+        board (game/convert-moves-to-board game)]
+    (if (= :ai (:kind current-player))
+      (gm/get-move current-player opponent board)
+      (get params-map "move" "-1"))))
 
-(defn update-moves [params-map]
-  (let [move (get params-map "move" "-1");
-        moves-str (get params-map "moves" "")
+(defn update-moves [params-map game]
+  (let [moves-str (get params-map "moves" "")
         moves (parse-moves moves-str)
-        ;if human do above, else get-move from ai
-
-        ]
+        move (get-move params-map game moves)]
     (if (wrong-move move)
       moves
-      (conj moves (Integer/parseInt move)))))
+      (conj moves (if (integer? move) move (Integer/parseInt move))))))
 
 (defn update-game [body]
   (let [params-map (parse-params body)
-        _ (prn "params-map:" params-map)
         size (get-value params-map "size" :3x3)
-        player-1 (get-value params-map "player_1" :human);assoc x
-        player-2 (get-value params-map "player_2" :human)
-        _ (prn "player-1:" player-1)
-        __ (prn "player-2:" player-2)
-        moves (update-moves params-map)
-        ;game-id (data/get-next-game-id)
-        game-id (+ 1 1)
-        game {:game-id  game-id
-              :player-1 {:kind player-1 :token "X"}
-              :player-2 {:kind player-2 :token "O"}
-              :size     size :moves moves}]
+        game-id (+ 1 1)                                     ;change
+        player-1-info (get-value params-map "player_1" {:kind :human})
+        player-2-info (get-value params-map "player_2" {:kind :human})
+        initial-game {:game-id  game-id
+                      :player-1 (assoc player-1-info :token "X")
+                      :player-2 (assoc player-2-info :token "O")
+                      :size     size :moves []}
+        moves (update-moves params-map initial-game)
+        game (assoc initial-game :moves moves)]
     game))
-
-
-#_(defmethod mouse-clicked :play [state mouse]
-    (let [{:keys [moves player-1 player-2]} (:game state)
-          [player opponent] (if (board/player1? moves)
-                              [player-1 player-2]
-                              [player-2 player-1])
-          size (size (:game state))
-          index (get-index size mouse)
-          game (:game state)
-          board (game/convert-moves-to-board game)
-          move (if (= :ai (:kind player))
-                 (gm/get-move player opponent board)
-                 (inc index))
-          token (get board index)
-          new-moves (conj (:moves game) move)]
-      (cond
-        (board/game-over? board game)
-        (assoc state :screen :again)
-
-        (= :ai (:kind player))
-        (do
-          (data/save! (assoc game :moves new-moves))
-          (assoc-in state [:game :moves] new-moves))
-
-        (available-move? token size move)
-        (do
-          (data/save! (assoc game :moves new-moves))
-          (assoc-in state [:game :moves] new-moves))
-
-        :else state)))
 
 (defn generate-response [input]
   (FilePathHandler/generateResponse "Tic Tac Toe" input))

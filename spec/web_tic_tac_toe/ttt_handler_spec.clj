@@ -1,11 +1,16 @@
 (ns web-tic-tac-toe.ttt-handler-spec
   (:require [speclj.core :refer :all]
-            [ttt-clojure.board :as board]
+            [clojure.string :as str]
             [ttt-clojure.game :as game]
+            [ttt-clojure.game-modes :as gm]
             [ttt-clojure.ui :as ui]
             [web_tic_tac_toe.ttt-handler :as sut])
   (:import (server FilePathHandler)))
 
+(def game {:game-id  1
+           :player-1 {:kind :human :token "X"}
+           :player-2 {:kind :human :token "O"}
+           :size     :3x3 :moves []})
 
 
 (describe "Parsing request body and constructing game state map"
@@ -34,7 +39,7 @@
 
   (it "converts specific values in the map"
     (let [params-map {"board_size" "4x4" "player_1" "ai_hard" "player_2" "ai_medium"}
-          expected-map {"board_size" :4x4 "player_1" :hard "player_2" :medium}]
+          expected-map {"board_size" :4x4 "player_1" {:kind :ai, :difficulty :hard} "player_2" {:kind :ai, :difficulty :medium}}]
       (doseq [[key expected-value] expected-map]
         (should= expected-value (sut/get-value params-map key "")))))
 
@@ -44,7 +49,7 @@
                             "text-align: center;  vertical-align: middle;  line-height: 60px;  margin: 2px;  border: 1px solid #000;}"
                             ".new-game-btn {  width: 120px;  height: 80px;  font-size: 16px;  text-align: center;  vertical-align: middle;  "
                             "background-color: #4CAF50;  color: white;  padding: 10px 20px;  border: none;  cursor: pointer;}</style>")]
-      (should= expected-css (sut/generate-css))))
+      (should= expected-css sut/generate-css)))
 
   (it "checks ttt form generation"
     (let [output sut/generate-tictactoe-form]
@@ -86,32 +91,48 @@
   (it "checks new game button"
     (let [expected-button (str "<form action=\"/tictactoe\" method=\"post\"><button type=\"submit\" "
                                "class=\"new-game-btn\" name=\"newGame\" value=\"true\">New Game</button></form>")]
-      (should= expected-button (sut/new-button))))
+      (should= expected-button sut/new-button)))
 
   (it "updates with no new moves and a valid new move"
     (let [params-map {"move" "5" "moves" ""}
           expected-moves [5]]
-      (should= expected-moves (sut/update-moves params-map))))
+      (should= expected-moves (sut/update-moves params-map game))))
 
   (it "updates with previous moves and a valid new move"
     (let [params-map {"move" "3" "moves" "1%2C2"}
           expected-moves [1 2 3]]
-      (should= expected-moves (sut/update-moves params-map))))
+      (should= expected-moves (sut/update-moves params-map game))))
 
   (it "does not update with previous moves and an invalid new move"
     (let [params-map {"move" "-1" "moves" "1%2C2"}
           expected-moves [1 2]]
-      (should= expected-moves (sut/update-moves params-map))))
+      (should= expected-moves (sut/update-moves params-map game))))
 
   (it "does not update with previous moves and no new move"
     (let [params-map {"moves" "1%2C2%2C3"}
           expected-moves [1 2 3]]
-      (should= expected-moves (sut/update-moves params-map))))
+      (should= expected-moves (sut/update-moves params-map game))))
+
+  (it "returns an empty vector when the input string is empty"
+    (should= [] (sut/parse-moves "")))
+
+  (it "returns a vector of integers when the input string is populated"
+    (should= [1 2 3] (sut/parse-moves "1%2C2%2C3")))
+
+  (it "identifies '-1' as an invalid move"
+    (should= true (sut/wrong-move "-1"))
+    (should= true (sut/wrong-move "X"))
+    (should= true (sut/wrong-move "O"))
+    (should= false (sut/wrong-move "5"))
+    (should= false (sut/wrong-move "0")))
+
+
+
 
   (it "does not update with previous moves and invalid string as new move"
     (let [params-map {"move" "X" "moves" "1%2C2"}
           expected-moves [1 2]]
-      (should= expected-moves (sut/update-moves params-map))))
+      (should= expected-moves (sut/update-moves params-map game))))
 
   (it "updates the game based on empty body input"
     (let [body ""
@@ -123,47 +144,41 @@
                          :moves    []}]
       (with-redefs [sut/parse-params (fn [_] parsed-map)
                     sut/get-value (fn [m k d] (get m k d))
-                    sut/update-moves (fn [_] [])]
+                    sut/update-moves (fn [_ _] [])]
         (should= expected-game (sut/update-game body)))))
 
   (it "updates the game based on request body"
     (let [body "size=4x4&player_1=human&player_2=ai_easy&move=3&moves=1,2"
           parsed-map {"size" "4x4", "player_1" "human", "player_2" "ai_easy", "move" "3", "moves" "1,2"}
           expected-game {:game-id  2,
-                         :player-1 {:kind "human" :token "X"},
-                         :player-2 {:kind "ai_easy" :token "O"},
+                         :player-1 {:kind :human :token "X"},
+                         :player-2 {:kind :ai :difficulty :easy :token "O"},
                          :size     "4x4",
-                         :moves    [1 2 3]}]
+                         :moves    []}]
       (with-redefs [sut/parse-params (fn [_] parsed-map)
-                    sut/get-value (fn [m k d] (get m k d))
-                    sut/update-moves (fn [_] [1 2 3])]
+                    sut/get-value (fn [m k d] (case k
+                                                "size" (get m k d)
+                                                "player_1" {:kind :human}
+                                                "player_2" {:kind :ai :difficulty :easy}))
+                    sut/update-moves (fn [_ _] [])]
         (should= expected-game (sut/update-game body)))))
 
   (it "tests generate html with game still going"
-    (with-redefs [sut/generate-css (stub :css)
-                  sut/game-buttons (stub :game-buttons)
-                  sut/hidden-map (stub :hidden-map)
-                  sut/new-button (stub :new-button)]
-
-
+    (with-redefs [sut/game-buttons (stub :game-buttons)
+                  sut/hidden-map (stub :hidden-map)]
       (let [game {:game-id  1
                   :player-1 {:kind :human :token "X"}
                   :player-2 {:kind :human :token "O"}
                   :size     :3x3 :moves []}]
         (sut/generate-html game)
-        (should-have-invoked :css)
         (should-have-invoked :game-buttons)
-        (should-have-invoked :hidden-map)
-        (should-have-invoked :new-button))))
+        (should-have-invoked :hidden-map))))
 
   (it "tests generate html with game over"
-    (with-redefs [sut/generate-css (stub :css)
-                  sut/game-buttons (stub :game-buttons)
+    (with-redefs [sut/game-buttons (stub :game-buttons)
                   sut/hidden-map (stub :hidden-map)
-                  sut/new-button (stub :new-button)
                   sut/display-game-board (stub :display)
-                  ui/endgame-result (stub :endgame-result)
-                  ]
+                  ui/endgame-result (stub :endgame-result)]
 
 
       (let [game {:game-id  1
@@ -171,12 +186,11 @@
                   :player-2 {:kind :human :token "O"}
                   :size     :3x3 :moves [1 2 3 4 5 6 7]}]
         (sut/generate-html game)
-        (should-have-invoked :css)
         (should-have-invoked :display)
         (should-have-invoked :endgame-result)
         (should-not-have-invoked :game-buttons)
         (should-not-have-invoked :hidden-map)
-        (should-have-invoked :new-button))))
+        )))
 
   (it "generateResponse"
     (let [response (FilePathHandler/generateResponse "Tic Tac Toe" "the-body")]
@@ -185,23 +199,52 @@
       (should-contain "<title>Tic Tac Toe</title>" (.getBody response))
       (should-contain "<body>the-body</body>" (.getBody response))))
 
+  (it "return a medium move"
+    (let [params-map {"move" "4"}
+          game {:game-id  1
+                :player-1 {:kind :human :token "X"}
+                :player-2 {:kind :ai :difficulty :medium :token "O"}
+                :moves    [1]
+                :size     :3x3}
+          moves [1]]
+      (should= 5 (sut/get-move params-map game moves))))
 
+  (it "return a hard move"
+    (let [params-map {"move" "4"}
+          game {:game-id  1
+                :player-1 {:kind :human :token "X"}
+                :player-2 {:kind :ai :difficulty :hard :token "O"}
+                :moves    [1]
+                :size     :3x3}
+          moves [1 5 2]]
+      (should= 3 (sut/get-move params-map game moves))))
+
+  (it "returns an easy move"
+    (with-redefs [gm/get-move (constantly 9)]
+      (let [params-map {"move" "4"}
+            game {:game-id  1
+                  :player-1 {:kind :human :token "X"}
+                  :player-2 {:kind :ai :difficulty :easy :token "O"}
+                  :moves    [1]
+                  :size     :3x3}
+            moves [1]]
+        (should= 9 (sut/get-move params-map game moves)))))
 
   #_(it "returns the Tic Tac Toe form for new games or when the body is empty"
-    (with-redefs [sut/parse-params (constantly {})
-                  sut/generate-tictactoe-form (stub :ttt-form)
-                  sut/generate-response (stub :generate-response)
-                  sut/generate-html (stub :html)
-                  ]
-      (let [request (str "POST / HTTP/1.1"
-                         "Host: localhost:1234"
-                         "Connection: keep-alive"
-                         "\n"
-                         "body=nothing")]
-        (sut/handle-tictactoe request)
-        (should-have-invoked :generate-response)
-        )
-      ))
+      (with-redefs [sut/parse-params (constantly {})
+                    sut/generate-tictactoe-form (stub :ttt-form)
+                    sut/generate-response (stub :generate-response)
+                    sut/generate-html (stub :html)
+                    ]
+        (let [request (str "POST / HTTP/1.1"
+                           "Host: localhost:1234"
+                           "Connection: keep-alive"
+                           "\n"
+                           "body=nothing")]
+          (sut/handle-tictactoe request)
+          (should-have-invoked :generate-response)
+          )
+        ))
 
 
 
