@@ -17,9 +17,6 @@
           "ai_hard" {:kind :ai :difficulty :hard}
           "ai_medium" {:kind :ai :difficulty :medium}
           "ai_easy" {:kind :ai :difficulty :easy}
-          "hard" {:kind :ai :difficulty :hard}
-          "medium" {:kind :ai :difficulty :medium}
-          "easy" {:kind :ai :difficulty :easy}
           "human" {:kind :human}
           nil)
         default)))
@@ -160,9 +157,13 @@
 (defn wrong-move [move]
   (or (= move "-1") (= move "X") (= move "O")))
 
+(defn get-players [game moves]
+  (if (even? (count moves))
+    [(:player-1 game) (:player-2 game)]
+    [(:player-2 game) (:player-1 game)]))
+
 (defn get-move [params-map game moves]
-  (let [current-player (if (even? (count moves)) (:player-1 game) (:player-2 game))
-        opponent (if (= current-player (:player-1 game)) (:player-2 game) (:player-1 game))
+  (let [[current-player opponent] (get-players game moves)
         game (assoc game :moves moves)
         board (game/convert-moves-to-board game)]
     (if (= :ai (:kind current-player))
@@ -170,8 +171,7 @@
       (get params-map "move" "-1"))))
 
 (defn update-moves [params-map game]
-  (let [moves-str (get params-map "moves" "")
-        moves (parse-moves moves-str)
+  (let [moves (parse-moves (get params-map "moves" ""))
         move (get-move params-map game moves)]
     (if (wrong-move move)
       moves
@@ -208,28 +208,6 @@
 
 
 
-
-
-
-
-; "<p>Please Select Player 1</p>"
-;       "<input type=\"radio\" id=\"human1\" name=\"player_1\" value=\"human\">"
-;       "<label for=\"human1\">human</label><br>"
-;       "<input type=\"radio\" id=\"ai_easy1\" name=\"player_1\" value=\"ai_easy\">"
-;       "<label for=\"easy ai1\">easy ai</label><br>"
-;       "<input type=\"radio\" id=\"ai_medium1\" name=\"player_1\" value=\"ai_medium\">"
-;       "<label for=\"medium ai1\">medium ai</label><br>"
-;       "<input type=\"radio\" id=\"ai_hard1\" name=\"player_1\" value=\"ai_hard\">"
-;       "<label for=\"hard ai1\">hard ai</label><br><br>"
-;       "<p>Please Select Player 2</p>"
-;       "<input type=\"radio\" id=\"human2\" name=\"player_2\" value=\"human\">"
-;       "<label for=\"human2\">human</label><br>"
-;       "<input type=\"radio\" id=\"ai_easy2\" name=\"player_2\" value=\"ai_easy\">"
-;       "<label for=\"easy ai2\">easy ai</label><br>"
-;       "<input type=\"radio\" id=\"ai_medium2\" name=\"player_2\" value=\"ai_medium\">"
-;       "<label for=\"medium ai2\">medium ai</label><br>"
-;       "<input type=\"radio\" id=\"ai_hard2\" name=\"player_2\" value=\"ai_hard\">"
-;       "<label for=\"hard ai2\">hard ai</label><br><br>"
 ;"<br>"
 ;"<input type=\"radio\" id=\"3x3x3\" name=\"board_size\" value=\"3x3x3\">"
 ;"<label for=\"3x3x3\">3x3x3</label>"
