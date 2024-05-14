@@ -1,11 +1,8 @@
 (ns web_tic_tac_toe.Server
   ;(:require [ttt-clojure.sketch :as sketch])
-  (:require [ttt-clojure.main-helpers :as helpers]
-            [web_tic_tac_toe.ttt-handler :as handler]
-            )
+  (:require [web_tic_tac_toe.ttt-handler :as handler])
   (:import (server MyHTTPServer)
            (RequestHandlers IRequestHandler)))
-
 
 (deftype TheHandler []
   IRequestHandler
@@ -19,8 +16,6 @@
         tic-tac-toe-handler (TheHandler.)
         server (MyHTTPServer. port tic-tac-toe-handler)]
     (.start server)))
-
-
 
 (defn -main [& args]
   (start-server))
