@@ -1,7 +1,7 @@
 (ns web-tic-tac-toe.generate_html
-  (:require [clojure.string :as str]
-            [ttt-clojure.board :as board]
+  (:require [ttt-clojure.board :as board]
             [ttt-clojure.game :as game]
+            [clojure.string :as str]
             [ttt-clojure.ui :as ui]))
 
 
@@ -67,7 +67,6 @@
        "<input type=\"submit\" value=\"Submit\">"
        "</form>"))
 
-
 (defn game-buttons [board side]
   (apply str
          (map-indexed
@@ -94,7 +93,7 @@
          "<input type='hidden' name='player_2' value='" (player-value player-2) "'>"
 
          "<input type='hidden' name='size' value='" (name (:size game)) "'>"
-         "<input type='hidden' name='moves' value='" (clojure.string/join "," (:moves game)) "'>")))
+         "<input type='hidden' name='moves' value='" (str/join "," (:moves game)) "'>")))
 
 (def new-button
   (str "<form action=\"/tictactoe\" method=\"post\">"
@@ -111,6 +110,30 @@
                                content "</div>"
                                (when (= (dec side) (mod i side)) "<br>"))))
                       board)))
+(defn player-name [current-player]
+  (if (= (:kind current-player) :human) "human" (str (name (:difficulty current-player)) " ai")))
+(defn turn-message [game]
+  (let [moves (:moves game)
+        player-1 (:player-1 game)
+        player-2 (:player-2 game)
+        [current-player player-number] (if (odd? (count moves)) [player-2 "2"] [player-1 "1"])
+        player-name (player-name current-player)]
+    (str "Player " player-number " " player-name "'s turn")))
+
+(defn game-in-progress [game board side]
+  (str "<br><div class='turn-message'>"
+       (turn-message game) "<br><br>"
+       "<form method='POST'>"
+       (game-buttons board side)
+       (hidden-map game)
+       "</form>"
+       "</div>"))
+
+(defn game-over-display [board side]
+  (str "<div class='game-result'>"
+       (display-game-board board side)
+       "</div>"
+       (ui/endgame-result board "X" "O")))
 
 (defn generate-html [game]
   (let [board (game/convert-moves-to-board game)
@@ -120,13 +143,7 @@
          generate-css
          "</head><body><h1>Tic Tac Toe</h1>"
          (if game-over?
-           (str "<div class='game-result'>"
-                (display-game-board board side)
-                "</div>"
-                (ui/endgame-result board "X" "O"))
-           (str "<form method='POST'>"
-                (game-buttons board side)
-                (hidden-map game)
-                "</form>"))
+           (game-over-display board side)
+           (game-in-progress game board side))
          new-button
          "</body></html>")))

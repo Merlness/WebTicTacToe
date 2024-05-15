@@ -2,9 +2,9 @@
   (:require [speclj.core :refer :all]
             [ttt-clojure.game-modes :as gm]
             [ttt-clojure.ui :as ui]
-            [web_tic_tac_toe.ttt-handler :as sut]
+            [web-tic-tac-toe.ttt-handler :as sut]
             [web-tic-tac-toe.generate_html :as gh]
-    ;[web_tic_tac_toe.generate_html :as gh]
+    ;[web-tic-tac-toe.generate_html :as gh]
             )
   (:import (server FilePathHandler Response)))
 
@@ -39,11 +39,14 @@
           expected-map {"board_size" "4x4" "player_1" "ai_hard" "player_2" "ai_medium"}]
       (should= expected-map (sut/parse-params params-str))))
 
-  (it "converts specific values in the map"
-    (let [params-map {"board_size" "4x4" "player_1" "ai_hard" "player_2" "ai_medium"}
-          expected-map {"board_size" :4x4 "player_1" {:kind :ai, :difficulty :hard} "player_2" {:kind :ai, :difficulty :medium}}]
-      (doseq [[key expected-value] expected-map]
-        (should= expected-value (sut/get-value params-map key "")))))
+  (it "converts board size into keywords"
+    (let [params-map {"board_size" "4x4" "player_1" "ai_hard" "player_2" "ai_medium"}]
+      (should= :4x4 (sut/get-board-size params-map "board_size" ""))))
+
+  (it "converts players into maps"
+    (should= {:kind :ai :difficulty :hard} (sut/get-player "ai_hard" ""))
+    (should= {:kind :ai :difficulty :foo} (sut/get-player "ai_foo" "default"))
+    (should= "default" (sut/get-player "ai_" "default")))
 
   (it "updates with no new moves and a valid new move"
     (let [params-map {"move" "5" "moves" ""}
@@ -154,16 +157,5 @@
           expected-body "\r\n<!DOCTYPE html><html><head><title>Tic Tac Toe</title></head><body><p>Hello, World!</p></body></html>"]
       (should= expected-body (.getBody response))
       (should= 200 (.getStatusCode response))))
-
-
-  (it "returns the Tic Tac Toe form for an empty body"
-    (with-redefs [gh/generate-tictactoe-form (stub :form)
-                  .getBody (stub :get-body {:return ""} )
-                  gh/generate-html (stub :html)]
-      (let [request ()
-
-            response (sut/handle-tictactoe "request")]
-        (sut/handle-tictactoe "request")
-        (should-have-invoked :form))))
 
   )

@@ -1,4 +1,4 @@
-(ns web_tic_tac_toe.ttt-handler
+(ns web-tic-tac-toe.ttt-handler
   (:require [clojure.string :as str]
             [ttt-clojure.game :as game]
             [ttt-clojure.game-modes :as gm]
@@ -7,17 +7,18 @@
 
 ;(def ui-type (atom :web))
 
-(defn get-value [params-map key default]
-  (let [value (get params-map key)]
-    (or (case value
-          "3x3" :3x3
-          "4x4" :4x4
-          "ai_hard" {:kind :ai :difficulty :hard}
-          "ai_medium" {:kind :ai :difficulty :medium}
-          "ai_easy" {:kind :ai :difficulty :easy}
-          "human" {:kind :human}
-          nil)
-        default)))
+(defn get-player [value default]
+  (let [[kind difficulty] (str/split (str value) #"_")]
+    (cond
+      (and (= "ai" kind) difficulty) {:kind :ai :difficulty (keyword difficulty)}
+      (= "human" kind) {:kind :human}
+      :else default)))
+
+(defn get-board-size [params-map key default]
+  (case (get params-map key)
+    "3x3" :3x3
+    "4x4" :4x4
+    default))
 
 (defn parse-moves [moves-str]
   (if (str/blank? moves-str)
@@ -54,10 +55,10 @@
 
 (defn update-game [body]
   (let [params-map (parse-params body)
-        size (get-value params-map "size" :3x3)
+        size (get-board-size params-map "size" :3x3)
         game-id (+ 1 1)                                     ;change
-        player-1-info (get-value params-map "player_1" {:kind :human})
-        player-2-info (get-value params-map "player_2" {:kind :human})
+        player-1-info (get-player (params-map "player_1") {:kind :human})
+        player-2-info (get-player (params-map "player_2") {:kind :human})
         initial-game {:game-id  game-id
                       :player-1 (assoc player-1-info :token "X")
                       :player-2 (assoc player-2-info :token "O")
@@ -69,14 +70,31 @@
 (defn generate-response [input]
   (FilePathHandler/generateResponse "Tic Tac Toe" input))
 
+(defn- respond-with-game [body]
+  (-> body update-game gh/generate-html generate-response))
+
+(defn- new-game? [body]
+  (or (empty? body)
+      (= body "newGame=true")))
+
+;"newGame=true&size=4x4&player_1=ai_predictable&player_2=human&moves=1%2C2"
+;"newGame=TRUE" ;ignore case
+;"newGame=TrUe"
+;"newGame=false"
+;"newGame=False"
+
 (defn handle-tictactoe [request]                            ;test
-  (let [body (.getBody request)
-        params-map (parse-params body)
-        new-game (get params-map "newGame" false)
-        game (update-game body)]
-    (if (or (empty? body) new-game)
+  (let [body (.getBody request)]
+    (if (new-game? body)
       (generate-response gh/generate-tictactoe-form)
-      (generate-response (gh/generate-html game)))))
+      (respond-with-game body)))
+  #_(let [body (.getBody request)
+          params-map (parse-params body)
+          new-game (get params-map "newGame" false)
+          game (update-game body)]
+      (if (or (empty? body) new-game)
+        (generate-response gh/generate-tictactoe-form)
+        (generate-response (gh/generate-html game)))))
 
 
 

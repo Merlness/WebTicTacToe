@@ -1,6 +1,5 @@
-(ns web_tic_tac_toe.Server
-  ;(:require [ttt-clojure.sketch :as sketch])
-  (:require [web_tic_tac_toe.ttt-handler :as handler])
+(ns web-tic-tac-toe.server
+  (:require [web-tic-tac-toe.ttt-handler :as handler])
   (:import (server MyHTTPServer)
            (RequestHandlers IRequestHandler)))
 
@@ -11,10 +10,13 @@
   (canHandle [_this request]
     (= "/tictactoe" (.getPath request))))
 
+(defn ->MyHTTPServer [^Integer port ^IRequestHandler handler]
+  (MyHTTPServer. port handler))
+
 (defn start-server []
   (let [port 8080
         tic-tac-toe-handler (TheHandler.)
-        server (MyHTTPServer. port tic-tac-toe-handler)]
+        server (->MyHTTPServer port tic-tac-toe-handler)]
     (.start server)))
 
 (defn -main [& args]
