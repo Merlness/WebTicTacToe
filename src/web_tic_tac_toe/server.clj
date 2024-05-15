@@ -21,11 +21,3 @@
 
 (defn -main [& args]
   (start-server))
-
-;(Main/main (into-array String ["-p" "80"]))
-;(main/-main)
-;(MyHTTPServer. 8080 (TheHandler.))
-;(println (helpers/testing :web))
-;(println (helpers/testing :default))
-;(defmethod helpers/testing :web [type]
-;  (str "this is web"))
