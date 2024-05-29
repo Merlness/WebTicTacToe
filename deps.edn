@@ -12,10 +12,12 @@
            }
 
  :aliases {
-           :dev  {:extra-deps {speclj/speclj {:mvn/version "3.4.6"}}}
-           :test {:extra-paths ["spec"]
-                  :extra-deps  {speclj/speclj {:mvn/version "3.4.6"}}
-                  :main-opts   ["-m" "speclj.main" "-c"]}
-           :run  {:main-opts ["-m" "webtictactoe.server"]}
+           :dev      {:extra-deps {speclj/speclj {:mvn/version "3.4.6"}}}
+           :test     {:extra-paths ["spec"]
+                      :extra-deps  {speclj/speclj {:mvn/version "3.4.6"}}
+                      :main-opts   ["-m" "speclj.main" "-c"]}
+           :coverage {:main-opts  ["-m" "cloverage.coverage" "-r" ":speclj" "--codecov" "-p" "src" "-s" "spec"]
+                      :extra-deps {cloverage/cloverage {:mvn/version "1.2.4"}}}
+           :run      {:main-opts ["-m" "webtictactoe.server"]}
            }
  }

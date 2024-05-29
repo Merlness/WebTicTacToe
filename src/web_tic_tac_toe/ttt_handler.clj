@@ -56,7 +56,7 @@
 (defn update-game [body]
   (let [params-map (parse-params body)
         size (get-board-size params-map "size" :3x3)
-        game-id (+ 1 1)                                     ;change
+        game-id (+ 1 1)
         player-1-info (get-player (params-map "player_1") {:kind :human})
         player-2-info (get-player (params-map "player_2") {:kind :human})
         initial-game {:game-id  game-id
@@ -77,24 +77,12 @@
   (or (empty? body)
       (= body "newGame=true")))
 
-;"newGame=true&size=4x4&player_1=ai_predictable&player_2=human&moves=1%2C2"
-;"newGame=TRUE" ;ignore case
-;"newGame=TrUe"
-;"newGame=false"
-;"newGame=False"
 
-(defn handle-tictactoe [request]                            ;test
+(defn handle-tictactoe [request]
   (let [body (.getBody request)]
     (if (new-game? body)
       (generate-response gh/generate-tictactoe-form)
-      (respond-with-game body)))
-  #_(let [body (.getBody request)
-          params-map (parse-params body)
-          new-game (get params-map "newGame" false)
-          game (update-game body)]
-      (if (or (empty? body) new-game)
-        (generate-response gh/generate-tictactoe-form)
-        (generate-response (gh/generate-html game)))))
+      (respond-with-game body))))
 
 
 

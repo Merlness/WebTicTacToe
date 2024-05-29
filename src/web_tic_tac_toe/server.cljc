@@ -14,7 +14,7 @@
   (MyHTTPServer. port handler))
 
 (defn start-server []
-  (let [port 8080
+  (let [port 8888
         tic-tac-toe-handler (TheHandler.)
         server (->MyHTTPServer port tic-tac-toe-handler)]
     (.start server)))
