@@ -5,8 +5,6 @@
             [web-tic-tac-toe.generate_html :as gh])
   (:import (server FilePathHandler)))
 
-;(def ui-type (atom :web))
-
 (defn get-player [value default]
   (let [[kind difficulty] (str/split (str value) #"_")]
     (cond
@@ -83,12 +81,3 @@
     (if (new-game? body)
       (generate-response gh/generate-tictactoe-form)
       (respond-with-game body))))
-
-
-
-
-
-
-;"<br>"
-;"<input type=\"radio\" id=\"3x3x3\" name=\"board_size\" value=\"3x3x3\">"
-;"<label for=\"3x3x3\">3x3x3</label>"

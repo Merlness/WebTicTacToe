@@ -85,6 +85,7 @@
     (if difficulty
       (str (name kind) "_" (name difficulty))
       (name kind))))
+
 (defn hidden-map [game]
   (let [player-1 (:player-1 game)
         player-2 (:player-2 game)]
@@ -112,6 +113,7 @@
                       board)))
 (defn player-name [current-player]
   (if (= (:kind current-player) :human) "human" (str (name (:difficulty current-player)) " ai")))
+
 (defn turn-message [game]
   (let [moves (:moves game)
         player-1 (:player-1 game)
